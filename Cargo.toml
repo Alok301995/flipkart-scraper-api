@@ -1,19 +1,21 @@
 [package]
 name = "flipkart-scraper-api"
-description = "API to scrape search results and product details from Flipkart"
-version = "4.1.0"
+version = "0.1.0"
+description = "API for scraping Flipkart product data"
+authors = ["Your Name <your.email@example.com>"]
+repository = "https://github.com/yourusername/flipkart-scraper-api"
+license = "MIT"
 edition = "2021"
 
-# Define the binary target (entry point for Rust app)
-[[bin]]
-name = "flipkart-scraper-api"
-path = "src/main.rs"
-
 [dependencies]
-flipkart_scraper = { version = "0.2.9", features = ["fetch"] }
-serde = "1.0.188"
-serde_json = "1.0.107"
 axum = "0.7.4"
-tokio = { version = "1.33.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.35.1", features = ["full"] }
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+url = "2.5.0"
+reqwest = { version = "0.11.23", features = ["json"] }
+scraper = "0.18.1"
+thiserror = "1.0.53"
+tower-http = { version = "0.5.0", features = ["cors"] }
 
 

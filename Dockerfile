@@ -1,42 +1,23 @@
-# First stage: Build the Rust binary
-FROM docker.io/rust:1.73-slim-bullseye as builder
+FROM rust:1.75-slim as builder
 
-WORKDIR /usr/src/flipkart-scraper-api
+WORKDIR /app
+COPY . .
 
-# Install required dependencies
-RUN apt update && apt install -y libssl-dev pkg-config
-
-# Copy Cargo manifest first for dependency caching
-COPY Cargo.toml Cargo.lock ./
-
-# Ensure src exists before fetching dependencies
-RUN mkdir -p src && echo "fn main() {}" > src/main.rs
-
-# Fetch dependencies only (without compiling the project yet)
-RUN cargo fetch --locked
-
-# Now copy the actual source code
-COPY ./src ./src
-
-# Build the Rust project in release mode
 RUN cargo build --release
 
-# Second stage: Create a smaller production image
-FROM docker.io/debian:bullseye-slim
+FROM debian:bullseye-slim
 
-WORKDIR /usr/local/bin/
+WORKDIR /app
 
-# Install required runtime dependencies
-RUN apt update && apt install -y ca-certificates
+# Install SSL certificates for HTTPS requests
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy the compiled binary from the builder stage
-COPY --from=builder /usr/src/flipkart-scraper-api/target/release/flipkart-scraper-api .
+COPY --from=builder /app/target/release/flipkart-scraper-api .
 
-# Expose the dynamic port (Render assigns it)
-EXPOSE 3000
+# Expose the port your application will run on
+EXPOSE 10000
 
-# Set dynamic port for Render
-ENV PORT=3000
-
-# Run the application
-CMD ["sh", "-c", "./flipkart-scraper-api --port ${PORT}"]
+# Command to run the application
+CMD ["./flipkart-scraper-api"]

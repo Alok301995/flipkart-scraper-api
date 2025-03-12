@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: flipkart-scraper-api
+    env: rust
+    buildCommand: cargo build --release
+    startCommand: ./target/release/flipkart-scraper-api
+    envVars:
+      - key: DEPLOYMENT_URL
+        value: 0.0.0.0:10000
+    autoDeploy: true
