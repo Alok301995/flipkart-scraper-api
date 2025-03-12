@@ -1,11 +1,14 @@
+use std::env;
 use axum::{
-    body::Body,
-    extract::{Path, Query},
-    http::{Response, StatusCode},
-    response::Redirect,
-    routing::get,
     Router,
+    response::{IntoResponse, Redirect},
+    routing::get,
+    http::{StatusCode, Response},
+    body::Body,
 };
+
+
+
 use std::collections::HashMap;
 mod search;
 use flipkart_scraper::Url;
@@ -14,6 +17,8 @@ mod product;
 use axum::response::IntoResponse;
 use product::product_details;
 use serde_json::{json, Value};
+mod handlers;
+use handlers::{search_router, product_router};
 
 async fn search_router(query: Option<Path<String>>) -> Response<Body> {
     let Path(query) = query.unwrap_or(Path("".to_string()));
@@ -70,42 +75,42 @@ async fn product_router(
 }
 
 #[tokio::main]
-async fn main() {
-    let description: Value = json!({
-        "name": env!("CARGO_PKG_NAME"),
-        "description": env!("CARGO_PKG_DESCRIPTION"),
-        "version": env!("CARGO_PKG_VERSION"),
-        "authors": env!("CARGO_PKG_AUTHORS"),
-        "repository": env!("CARGO_PKG_REPOSITORY"),
-        "license": env!("CARGO_PKG_LICENSE"),
-        "usage": {
-            "search_api": concat!(env!("DEPLOYMENT_URL"), "/search/{product_name}"),
-            "product_api": concat!(env!("DEPLOYMENT_URL"), "/product/{product_link_argument}"),
+        async fn main() {
+            let description: Value = json!({
+                "name": env!("CARGO_PKG_NAME"),
+                "description": env!("CARGO_PKG_DESCRIPTION"),
+                "version": env!("CARGO_PKG_VERSION"),
+                "authors": env!("CARGO_PKG_AUTHORS"),
+                "repository": env!("CARGO_PKG_REPOSITORY"),
+                "license": env!("CARGO_PKG_LICENSE"),
+                "usage": {
+                    "search_api": concat!(env!("DEPLOYMENT_URL"), "/search/{product_name}"),
+                    "product_api": concat!(env!("DEPLOYMENT_URL"), "/product/{product_link_argument}"),
+                }
+            });
+
+            let app = Router::new()
+                .route(
+                    "/",
+                    get(|| async move {
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header("Content-Type", "application/json")
+                            .body(Body::from((description).to_string()))
+                            .unwrap()
+                    }),
+                )
+                .route("/search/*query", get(search_router))
+                .route("/search", get(search_router))
+                .route("/search/", get(search_router))
+                .route("/product/*url", get(product_router))
+                .fallback(get(|| async {
+                    (StatusCode::PERMANENT_REDIRECT, Redirect::permanent("/")).into_response()
+                }));
+
+            println!("Starting server on {}", env!("DEPLOYMENT_URL"));
+            let listener = tokio::net::TcpListener::bind(env!("DEPLOYMENT_URL"))
+                .await
+                .unwrap();
+            axum::serve(listener, app).await.unwrap();
         }
-    });
-
-    let app = Router::new()
-        .route(
-            "/",
-            get(|| async move {
-                Response::builder()
-                    .status(StatusCode::OK)
-                    .header("Content-Type", "application/json")
-                    .body(Body::from((description).to_string()))
-                    .unwrap()
-            }),
-        )
-        .route("/search/*query", get(search_router))
-        .route("/search", get(search_router))
-        .route("/search/", get(search_router))
-        .route("/product/*url", get(product_router))
-        .fallback(get(|| async {
-            (StatusCode::PERMANENT_REDIRECT, Redirect::permanent("/")).into_response()
-        }));
-
-    println!("Starting server on {}", env!("DEPLOYMENT_URL"));
-    let listener = tokio::net::TcpListener::bind(env!("DEPLOYMENT_URL"))
-        .await
-        .unwrap();
-    axum::serve(listener, app).await.unwrap();
-}

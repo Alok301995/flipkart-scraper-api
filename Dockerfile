@@ -6,18 +6,19 @@ WORKDIR /usr/src/flipkart-scraper-api
 # Install required dependencies
 RUN apt update && apt install -y libssl-dev pkg-config
 
-# Set necessary environment variables
-ENV OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu
-ENV OPENSSL_INCLUDE_DIR=/usr/include
-
-# Copy Cargo manifest and fetch dependencies separately for caching
+# Copy Cargo manifest first for dependency caching
 COPY Cargo.toml Cargo.lock ./
+
+# Ensure src exists before fetching dependencies
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs
+
+# Fetch dependencies only (without compiling the project yet)
 RUN cargo fetch --locked
 
-# Copy the rest of the source code
+# Now copy the actual source code
 COPY ./src ./src
 
-# Build the project in release mode
+# Build the Rust project in release mode
 RUN cargo build --release
 
 # Second stage: Create a smaller production image
@@ -31,11 +32,11 @@ RUN apt update && apt install -y ca-certificates
 # Copy the compiled binary from the builder stage
 COPY --from=builder /usr/src/flipkart-scraper-api/target/release/flipkart-scraper-api .
 
-# Expose the port (not strictly necessary for dynamic ports)
+# Expose the dynamic port (Render assigns it)
 EXPOSE 3000
 
-# Set Render’s dynamic port (default to 3000 if not set)
+# Set dynamic port for Render
 ENV PORT=3000
 
-# Run the application with the dynamic port
+# Run the application
 CMD ["sh", "-c", "./flipkart-scraper-api --port ${PORT}"]
